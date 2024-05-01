@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Build') {
+            steps {
+                // Use Maven to build the code
+                sh 'mvn clean package'
+            }
+        }
+        stage('Unit and Integration Tests') {
+            steps {
+                // Run unit tests
+                sh 'mvn test'
+                
+                // Run integration tests
+                sh 'mvn integration-test'
+            }
+        }
+        stage('Code Analysis') {
+            steps {
+                // Use SonarQube for code analysis
+                sh 'mvn sonar:sonar'
+            }
+        }
+        stage('Security Scan') {
+            steps {
+                // Use OWASP ZAP for security scanning
+                sh 'zap-cli --zap-url http://localhost:8080 --scan http://example.com'
+            }
+        }
+        stage('Deploy to Staging') {
+            steps {
+                // Use Jenkins SSH Plugin to deploy
+                sshPublisher(
+                    continueOnError: false,
+                    failOnError: true,
+                    publishers: [
+                        sshPublisherDesc(
+                            configName: "my-ssh-config",
+                            transfers: [
+                                sshTransfer(
+                                    execCommand: "sudo docker-compose up -d"
+                                )
+                            ]
+                        )
+                    ]
+                )
+            }
+        }
+        stage('Integration Tests on Staging') {
+            steps {
+                // Run integration tests on staging
+                sh 'mvn integration-test'
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                // Use Jenkins SSH Plugin to deploy
+                sshPublisher(
+                    continueOnError: false,
+                    failOnError: true,
+                    publishers: [
+                        sshPublisherDesc(
+                            configName: "my-ssh-config",
+                            transfers: [
+                                sshTransfer(
+                                    execCommand: "sudo docker-compose up -d"
+                                )
+                            ]
+                        )
+                    ]
+                )
+            }
+        }
+    }
+    
+    post {
+        success {
+            // Send notification email on success
+            emailext subject: 'Pipeline Success',
+                      body: 'The pipeline has completed successfully.',
+                      to: 's224041382@deakin.edu.au'
+        }
+        failure {
+            // Send notification email on failure
+            emailext subject: 'Pipeline Failure',
+                      body: 'The pipeline has failed. Please check the logs.',
+                      to: 's224041382@deakin.edu.au'
+        }
+    }
+}
